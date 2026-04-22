@@ -52,7 +52,18 @@ module.exports = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			}
+  			},
+  			sidebar: {
+  				DEFAULT: 'hsl(var(--sidebar-background))',
+  				foreground: 'hsl(var(--sidebar-foreground))',
+  				border: 'hsl(var(--sidebar-border))',
+  				accent: {
+  					DEFAULT: 'hsl(var(--sidebar-accent))',
+  					foreground: 'hsl(var(--sidebar-accent-foreground))'
+  				}
+  			},
+  			success: 'hsl(var(--success))',
+  			warning: 'hsl(var(--warning))'
   		},
   		keyframes: {
   			'accordion-down': {
