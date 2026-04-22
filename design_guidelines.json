@@ -1,0 +1,120 @@
+{
+  "theme": {
+    "primary_archetype": "Archetype 4 (Swiss & High-Contrast)",
+    "mode": "light_and_dark_toggle",
+    "emotional_tone": "Reliable, clear, objective, efficient",
+    "description": "A dense, high-contrast B2B order management dashboard focusing on data clarity, operational efficiency, and strict hierarchy. Built for power users (Admins, Warehouse, Sellers)."
+  },
+  "colors": {
+    "light": {
+      "background": "#F9F9FB",
+      "surface": "#FFFFFF",
+      "primary": "#0052FF",
+      "primary_hover": "#0040CC",
+      "text_primary": "#111827",
+      "text_secondary": "#6B7280",
+      "border": "#E5E7EB",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "destructive": "#EF4444"
+    },
+    "dark": {
+      "background": "#0A0A0B",
+      "surface": "#121214",
+      "primary": "#337AFF",
+      "primary_hover": "#5C95FF",
+      "text_primary": "#F9FAFB",
+      "text_secondary": "#9CA3AF",
+      "border": "#27272A",
+      "success": "#34D399",
+      "warning": "#FBBF24",
+      "destructive": "#F87171"
+    }
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Manrope",
+      "weights": ["600", "700", "800"],
+      "tracking": "tracking-tight",
+      "usage": "Use for all page titles, dashboard metrics headers, and card titles."
+    },
+    "body": {
+      "font_family": "IBM Plex Sans",
+      "weights": ["400", "500", "600"],
+      "tracking": "tracking-normal",
+      "usage": "Use for all tabular data, logs, inputs, and standard text for maximum technical readability."
+    },
+    "hierarchy": {
+      "h1": "text-3xl sm:text-4xl",
+      "h2": "text-2xl sm:text-3xl",
+      "h3": "text-xl sm:text-2xl",
+      "h4": "text-lg",
+      "body": "text-sm sm:text-base",
+      "small": "text-xs"
+    }
+  },
+  "layout_and_spacing": {
+    "strategy": "The 'Control Room' Grid",
+    "spacing_scale": "Dense. Use p-4 to p-6 for internal card padding.",
+    "grid_structure": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 or lg:grid-cols-12 for complex metric dashboards.",
+    "gaps": "gap-4 or gap-6",
+    "corners": "rounded-md (6px) or rounded-lg (8px)",
+    "alignment": "Left-align all data tables and form inputs. Numbers in tables must be right-aligned."
+  },
+  "surfaces_and_borders": {
+    "cards": "Flat solid background. 1px solid border (border-border). No default shadow. Hover state: slight lift (-translate-y-0.5) and shadow-sm.",
+    "header_sidebar": "Solid backgrounds. Right border for sidebar (border-r). Bottom border for top header (border-b). No glassmorphism here, prioritize clinical data readability.",
+    "buttons": "Primary: Solid fill. Secondary: Outline with transparent background, solid hover fill. Subtle transition-all duration-200."
+  },
+  "animations": {
+    "strategy": "Minimalist and precise",
+    "hover_states": "Crisp color shifts. Explicit text colors on hover (e.g., hover:bg-slate-100 hover:text-slate-900).",
+    "focus_states": "High contrast rings (focus:ring-2 focus:ring-primary/50 focus:outline-none).",
+    "page_transitions": "None or very subtle fade-in. Data must load instantly."
+  },
+  "icons_and_assets": {
+    "icon_library": "@phosphor-icons/react",
+    "icon_style": "Use for clear, dense dashboard iconography (e.g., FileCsv, FilePdf, Users, Package, Clock, ChartBar).",
+    "images": [
+      {
+        "category": "company_logo_placeholder",
+        "url": "https://static.prod-images.emergentagent.com/jobs/00b87894-d657-4972-9781-96bd7361e6d4/images/812b84f71a547073bbc4ef39a13f56915f50f8832459e6531a783a50ab8ab26d.png",
+        "description": "Minimalist geometric logo for the logistics company. Can be inverted in dark/light mode using CSS filter: invert(1) if necessary."
+      },
+      {
+        "category": "user_avatar_admin",
+        "url": "https://images.unsplash.com/photo-1762522926157-bcc04bf0b10a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMGhlYWRzaG90JTIwY2xlYW4lMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3Njg2MzU1N3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Professional avatar for Admin user."
+      },
+      {
+        "category": "user_avatar_seller",
+        "url": "https://images.pexels.com/photos/12311553/pexels-photo-12311553.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Professional avatar for Seller user."
+      }
+    ]
+  },
+  "components_instructions": {
+    "forms": "Use Shadcn UI forms. Inputs must have clear borders. Use Shadcn Select for role changing.",
+    "tables": "Dense Shadcn tables. Implement sticky headers if possible. Use Shadcn DropdownMenu for row actions (Edit, Delete, Export).",
+    "charts": "Use Shadcn charts (Recharts under the hood) for 'active orders by client' and 'products going out tomorrow'. Tooltips must be dark-themed or highly contrasted.",
+    "modals": "Use Shadcn Dialog for adding/editing Clients, Products, and Users. Keep forms constrained and clearly labeled.",
+    "logs": "Audit log must be a scrollable list or table, displaying User, Action, Timestamp, and Entity (e.g., 'Admin added Client X').",
+    "data_testid": "MANDATORY. All buttons, inputs, links, and key metric cards must have a data-testid attribute (e.g., data-testid='export-pdf-button')."
+  },
+  "accessibility": {
+    "contrast": "Ensure all text meets at least 4.5:1 ratio against backgrounds. Use Text Shadow on charts if needed.",
+    "motion": "Respect prefers-reduced-motion for all UI shifts."
+  },
+  "instructions_to_main_agent": [
+    "Implement Shadcn/UI for maximum B2B compatibility: Button, Input, Select, Table, Dialog, DropdownMenu, Tabs, Charts.",
+    "Ensure complete responsive sidebar layout (collapsible or hidden behind hamburger on mobile).",
+    "Implement light/dark mode toggle affecting global background, text, and border colors as defined in the palette.",
+    "Implement a language toggle (PT/EN) context. Use simple translation keys or dictionary mapping.",
+    "For PDF Export: Integrate standard browser print styles or a library like jspdf/react-pdf to format the order list properly with the company logo.",
+    "For CSV/Excel Import/Export: Add UI buttons (data-testid='import-csv-btn', data-testid='export-csv-btn') connected to file upload/download flows.",
+    "Ensure 'Orders' can map multiple 'Products' to a 'Client'.",
+    "Build the 'Audit Log' page to list historical changes.",
+    "Install and use @phosphor-icons/react for iconography.",
+    "Use standard font imports (e.g., Google Fonts for Manrope and IBM Plex Sans) in the main layout or index.css."
+  ]
+}
