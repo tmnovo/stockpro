@@ -170,13 +170,13 @@ export default function Orders() {
         </div>
 
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[720px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("client")}</TableHead>
                   <TableHead>{t("delivery_date")}</TableHead>
-                  <TableHead>{t("order_items")}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{t("order_items")}</TableHead>
                   <TableHead className="text-right">{t("total")}</TableHead>
                   <TableHead>{t("status")}</TableHead>
                   <TableHead className="text-right">{t("actions")}</TableHead>
@@ -186,12 +186,12 @@ export default function Orders() {
                 {loading ? (
                   <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("loading")}</TableCell></TableRow>
                 ) : orders.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("no_data")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground" data-testid="orders-empty">{t("no_data")}</TableCell></TableRow>
                 ) : orders.map((o) => (
                   <TableRow key={o.id} data-testid={`order-row-${o.id}`}>
                     <TableCell className="font-medium">{o.client_name}</TableCell>
                     <TableCell className="font-mono text-xs">{o.delivery_date || "—"}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <div className="text-xs text-muted-foreground">
                         {o.items.slice(0, 2).map((i) => `${i.quantity}× ${i.product_name}`).join(", ")}
                         {o.items.length > 2 && ` +${o.items.length - 2}`}
@@ -227,12 +227,12 @@ export default function Orders() {
 
       {/* Order Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="order-dialog">
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto w-[95vw]" data-testid="order-dialog">
           <DialogHeader>
             <DialogTitle className="font-display">{editing ? t("edit_order") : t("new_order")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs uppercase font-mono tracking-wider">{t("client")} *</Label>
                 <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
@@ -275,7 +275,7 @@ export default function Orders() {
                   const subtotal = (parseInt(item.quantity) || 0) * price;
                   return (
                     <div key={idx} className="grid grid-cols-12 gap-2 items-end p-2 rounded-md bg-muted/40 border border-border" data-testid={`order-item-${idx}`}>
-                      <div className="col-span-6">
+                      <div className="col-span-12 sm:col-span-6">
                         <Select value={item.product_id} onValueChange={(v) => updateItem(idx, { product_id: v })}>
                           <SelectTrigger className="h-9" data-testid={`order-item-product-${idx}`}><SelectValue placeholder={t("product")} /></SelectTrigger>
                           <SelectContent>
@@ -283,7 +283,7 @@ export default function Orders() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-4 sm:col-span-2">
                         <Input
                           type="number" min="1" value={item.quantity}
                           onChange={(e) => updateItem(idx, { quantity: e.target.value })}
@@ -291,10 +291,10 @@ export default function Orders() {
                           data-testid={`order-item-qty-${idx}`}
                         />
                       </div>
-                      <div className="col-span-3 text-xs text-right font-mono tabular-nums text-muted-foreground">
+                      <div className="col-span-6 sm:col-span-3 text-xs text-right font-mono tabular-nums text-muted-foreground self-center">
                         €{subtotal.toFixed(2)}
                       </div>
-                      <div className="col-span-1 flex justify-end">
+                      <div className="col-span-2 sm:col-span-1 flex justify-end">
                         <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(idx)} data-testid={`order-item-remove-${idx}`} className="h-8 w-8">
                           <X size={14} />
                         </Button>

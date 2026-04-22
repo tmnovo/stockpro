@@ -31,7 +31,7 @@ const navItems = (t, user) => {
   return items;
 };
 
-export default function Sidebar({ companyName = "OMS" }) {
+export function SidebarContent({ companyName = "OMS", onNavigate }) {
   const { user, logout, hasPermission } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -41,8 +41,8 @@ export default function Sidebar({ companyName = "OMS" }) {
   );
 
   return (
-    <aside className="hidden md:flex md:flex-col w-64 h-screen bg-sidebar border-r border-sidebar-border shrink-0 sticky top-0" data-testid="sidebar">
-      <div className="h-16 flex items-center gap-2 px-6 border-b border-sidebar-border">
+    <div className="flex flex-col h-full bg-sidebar">
+      <div className="h-16 flex items-center gap-2 px-6 border-b border-sidebar-border shrink-0">
         <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
           <CubeFocus size={18} weight="bold" className="text-primary-foreground" />
         </div>
@@ -60,9 +60,10 @@ export default function Sidebar({ companyName = "OMS" }) {
               to={item.to}
               end={item.to === "/"}
               data-testid={item.testid}
+              onClick={onNavigate}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-panel",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-panel",
                   isActive
                     ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                     : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
@@ -76,14 +77,14 @@ export default function Sidebar({ companyName = "OMS" }) {
         })}
       </nav>
 
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="p-3 border-t border-sidebar-border shrink-0">
         <div className="px-3 py-2 mb-2">
           <div className="text-xs text-muted-foreground">Logged in as</div>
           <div className="text-sm font-semibold truncate" data-testid="user-name-sidebar">{user?.name}</div>
           <div className="text-xs text-muted-foreground capitalize">{t(`role_${user?.role}`)}</div>
         </div>
         <button
-          onClick={async () => { await logout(); navigate("/login"); }}
+          onClick={async () => { await logout(); navigate("/login"); onNavigate?.(); }}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-destructive transition-panel"
           data-testid="logout-button"
         >
@@ -91,6 +92,14 @@ export default function Sidebar({ companyName = "OMS" }) {
           <span>{t("logout")}</span>
         </button>
       </div>
+    </div>
+  );
+}
+
+export default function Sidebar({ companyName }) {
+  return (
+    <aside className="hidden md:flex md:flex-col w-64 h-screen border-r border-sidebar-border shrink-0 sticky top-0" data-testid="sidebar-desktop">
+      <SidebarContent companyName={companyName} />
     </aside>
   );
 }

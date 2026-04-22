@@ -139,8 +139,8 @@ export default function Clients() {
         </div>
 
         <Card>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("name")}</TableHead>
