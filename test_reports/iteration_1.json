@@ -1,0 +1,74 @@
+{
+  "summary": "Comprehensive backend test for Order Management System. 28/30 pytest tests passed (93%). Covered: auth (login/me/logout/change-password/brute-force), users CRUD+self-delete guard, clients CRUD + import EN/PT + XLSX export, products CRUD + import/export, orders CRUD + enrichment + validation + daily-pdf, dashboard stats, audit logs, settings, RBAC (seller/warehouse 403s). Found 2 critical backend bugs.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/orders/daily-pdf",
+        "issue": "Returns 404 'Order not found' instead of PDF. Root cause: FastAPI route ordering bug. `/orders/{order_id}` is declared at line 757 BEFORE `/orders/daily-pdf` at line 939 in server.py, so GET /orders/daily-pdf is captured by the dynamic path param route (order_id='daily-pdf'). Fix: move the `daily_pdf` route definition ABOVE `get_order` (i.e., before any `/orders/{order_id}` routes).",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/auth/login (brute force protection)",
+        "issue": "Brute-force lockout never triggers in production/preview. 6 consecutive failed logins from the same test client all returned 401 (expected 429 on attempt 6). Root cause: identifier is built as `f\"{ip}:{email}\"` using `request.client.host`, but behind the Kubernetes ingress/proxy the direct client host varies per request (not the real user IP) — so each failed attempt is recorded under a different identifier and the counter never reaches MAX_ATTEMPTS=5. Fix: use `X-Forwarded-For` (first IP) as the client IP, OR use email-only as the brute-force identifier (safer for this case).",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "seed_admin()",
+        "issue": "When admin password in DB does not match env ADMIN_PASSWORD, code only resets role/permissions/active but NOT the password. Comment says this is intentional, but it also means the documented credential admin@admin.com/admin123 is not guaranteed to work if anyone changes it — consider documenting this behavior explicitly."
+      },
+      {
+        "endpoint": "GET /api/clients/export, GET /api/products/export",
+        "issue": "Exports include MongoDB/UUID and raw timestamps; when the collection is empty the export still uses the limited column list from server.py (ok). Minor: export does not respect any filter/search; acceptable for MVP."
+      },
+      {
+        "endpoint": "Import endpoints (clients/products)",
+        "issue": "No de-duplication on import — importing the same file twice creates duplicate records (no upsert by tax_id/sku/email). Acceptable for MVP but worth noting."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "FIX ROUTE ORDER: move `@api_router.get('/orders/daily-pdf')` definition ABOVE `@api_router.get('/orders/{order_id}')` in /app/backend/server.py, otherwise daily PDF generation is completely broken (returns 404).",
+    "FIX BRUTE FORCE IDENTIFIER: in /api/auth/login, derive client IP from `request.headers.get('x-forwarded-for', '').split(',')[0].strip() or request.client.host` (or simply use email as identifier). Currently brute-force lockout never triggers behind the ingress proxy.",
+    "(Optional) Consider upsert-by-unique-field for CSV imports to avoid duplicates on re-import."
+  ],
+  "critical_code_review_comments": [
+    "Route declaration order: FastAPI matches routes in declaration order. `/orders/{order_id}` (dynamic) was declared before `/orders/daily-pdf` (static), shadowing the static route. Always declare static/specific routes before dynamic path-param routes.",
+    "Brute-force protection relies on request.client.host which behind a reverse-proxy / ingress is the proxy's IP, not the real client IP. Must honor X-Forwarded-For or use a proxy-agnostic identifier.",
+    "server.py is ~1136 lines — consider splitting into modules (auth.py, clients.py, products.py, orders.py, dashboard.py, pdf.py) for maintainability (>700 lines threshold).",
+    "seed_admin logic is asymmetric: creates with hashed env password on first run but never re-syncs password on subsequent runs — if the seeded admin is deleted or db is wiped it's recreated, but env password changes are silently ignored. Acceptable but document it.",
+    "Logout depends on `get_current_user` — returns 401 if user is already logged out. Low severity but the endpoint could be idempotent (clear cookies regardless).",
+    "HTTPS cookie flag hardcoded `secure=False` — for production behind HTTPS this should be True (or env-driven). Since preview uses HTTPS externally and HTTP internally, cookies still work because same-site=lax, but production hardening recommended."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (new)"
+  ],
+  "success_rate": { "backend": "93% (28/30)", "frontend": "not tested" },
+  "test_credentials": "admin@admin.com / admin123 (confirmed working, seeded on startup)",
+  "seed_data_creation": "Tests create TEST_-prefixed clients/products/users/orders with self-teardown via pytest fixtures. No persistent seed data left behind.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file at /app/backend/tests/backend_test.py covers ALL major endpoints including RBAC. Re-run with: `cd /app/backend && python -m pytest tests/backend_test.py -v --junitxml=/app/test_reports/pytest/pytest_results.xml`. After main agent fixes the two bugs (route order for daily-pdf, X-Forwarded-For for brute force), all 30 tests should pass. Note: brute force test uses a unique email per run so repeated runs don't collide. Daily PDF test creates an order for (today+2) then requests the PDF for that date.",
+  "rca of the issue": {
+    "daily_pdf_404": {
+      "reproduction": "1) Login as admin. 2) GET /api/orders/daily-pdf?target_date=2026-01-15. Expected: application/pdf 200. Actual: 404 JSON {'detail':'Order not found'}.",
+      "root_cause": "In server.py, `@api_router.get('/orders/{order_id}')` is declared at line 757, BEFORE `@api_router.get('/orders/daily-pdf')` at line 939. FastAPI routes are matched in declaration order, so the request hits the dynamic path with order_id='daily-pdf' which then 404s.",
+      "mitigation": "Move the `/orders/daily-pdf` handler above `/orders/{order_id}` in server.py. No other changes required."
+    },
+    "brute_force_not_triggering": {
+      "reproduction": "Run 6 POST /api/auth/login with the same invalid email from one client. All 6 return 401; none return 429.",
+      "root_cause": "In check_brute_force/record_failed_attempt the identifier is `{request.client.host}:{email}`. Behind the Kubernetes ingress, `request.client.host` is the proxy's upstream socket address (varies per request / pod), so each failed attempt stores a new document and the counter never reaches 5.",
+      "mitigation": "Use `request.headers.get('x-forwarded-for','').split(',')[0].strip() or request.client.host` as IP, or drop IP entirely and use just the email (simpler and effective against credential-stuffing on a specific account)."
+    }
+  }
+}
