@@ -1123,6 +1123,19 @@ async def root():
     return {"message": "Order Management System API", "version": "1.0"}
 
 
+@api_router.get("/download/project-zip")
+async def download_project_zip():
+    """Public endpoint: direct download of the project source code as .zip"""
+    zip_path = UPLOAD_DIR / "project.zip"
+    if not zip_path.exists():
+        raise HTTPException(status_code=404, detail="Project zip not found")
+    return StreamingResponse(
+        open(zip_path, "rb"),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="order-management-system.zip"'},
+    )
+
+
 # Mount router & CORS
 app.include_router(api_router)
 
