@@ -355,8 +355,8 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
 @api_router.post("/auth/login")
 async def login(data: LoginIn, request: Request, response: Response):
     email = data.email.lower().strip()
-    ip = request.client.host if request.client else "unknown"
-    identifier = f"{ip}:{email}"
+    # Brute force identifier: use email only (proxy-agnostic, protects the account)
+    identifier = f"email:{email}"
 
     await check_brute_force(identifier)
 
@@ -754,6 +754,33 @@ async def list_orders(user: dict = Depends(require_permission("orders", "view"))
     return [await _enrich_order(o) for o in items]
 
 
+@api_router.get("/orders/daily-pdf")
+async def daily_pdf(target_date: Optional[str] = Query(None),
+                    user: dict = Depends(require_permission("orders", "pdf"))):
+    # Default: tomorrow
+    if not target_date:
+        tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).date()
+        target_date = tomorrow.isoformat()
+    orders = await db.orders.find(
+        {"delivery_date": target_date, "status": {"$ne": "cancelled"}},
+        {"_id": 0}
+    ).to_list(5000)
+    enriched = [await _enrich_order(o) for o in orders]
+
+    settings = await db.settings.find_one({"id": "global"}, {"_id": 0}) or {}
+    company_name = settings.get("company_name") or os.environ.get("COMPANY_NAME", "Order Management")
+    logo = settings.get("company_logo")
+
+    pdf_bytes = await generate_orders_pdf(enriched, target_date, company_name, logo)
+    await log_action(user, "pdf_export", "order", None,
+                     f"Generated PDF for {target_date} ({len(enriched)} orders)")
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="orders_{target_date}.pdf"'},
+    )
+
+
 @api_router.get("/orders/{order_id}")
 async def get_order(order_id: str, user: dict = Depends(require_permission("orders", "view"))):
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
@@ -934,33 +961,6 @@ async def generate_orders_pdf(orders: List[dict], target_date: str, company_name
 
     doc.build(elements)
     return buf.getvalue()
-
-
-@api_router.get("/orders/daily-pdf")
-async def daily_pdf(target_date: Optional[str] = Query(None),
-                    user: dict = Depends(require_permission("orders", "pdf"))):
-    # Default: tomorrow
-    if not target_date:
-        tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).date()
-        target_date = tomorrow.isoformat()
-    orders = await db.orders.find(
-        {"delivery_date": target_date, "status": {"$ne": "cancelled"}},
-        {"_id": 0}
-    ).to_list(5000)
-    enriched = [await _enrich_order(o) for o in orders]
-
-    settings = await db.settings.find_one({"id": "global"}, {"_id": 0}) or {}
-    company_name = settings.get("company_name") or os.environ.get("COMPANY_NAME", "Order Management")
-    logo = settings.get("company_logo")
-
-    pdf_bytes = await generate_orders_pdf(enriched, target_date, company_name, logo)
-    await log_action(user, "pdf_export", "order", None,
-                     f"Generated PDF for {target_date} ({len(enriched)} orders)")
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="orders_{target_date}.pdf"'},
-    )
 
 
 # ============================================================================
