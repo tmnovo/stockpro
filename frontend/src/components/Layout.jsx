@@ -6,13 +6,13 @@ import { api } from "@/lib/api";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export default function Layout({ title, children }) {
-  const [companyName, setCompanyName] = useState("OMS");
+  const [companyName, setCompanyName] = useState("ProdStock V1.1 Beta");
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     api.get("/settings")
-      .then(({ data }) => setCompanyName(data.company_name || "OMS"))
+      .then(({ data }) => setCompanyName(data.company_name || "ProdStock V1.1 Beta"))
       .catch(() => {});
   }, []);
 
@@ -35,6 +35,9 @@ export default function Layout({ title, children }) {
         <main className="flex-1 p-3 sm:p-4 md:p-6 max-w-[1600px] w-full">
           {children}
         </main>
+        <footer className="px-4 py-3 text-xs text-muted-foreground border-t border-border text-center font-mono md:hidden">
+          Powered by Tiago Novo e Bruno Santos
+        </footer>
       </div>
     </div>
   );

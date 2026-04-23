@@ -1,7 +1,7 @@
 export const translations = {
   pt: {
     // Common
-    app_name: "Gestão de Encomendas",
+    app_name: "ProdStock V1.1 Beta",
     loading: "A carregar...",
     save: "Guardar",
     cancel: "Cancelar",
@@ -65,6 +65,8 @@ export const translations = {
     city: "Localidade",
     country: "País",
     clients_pdf: "PDF Clientes",
+    search_client_placeholder: "Pesquisar por nome ou NIF",
+    search_product_placeholder: "Pesquisar por nome, código ou EAN",
 
     // Dashboard
     total_clients: "Total Clientes",
@@ -156,7 +158,7 @@ export const translations = {
     invalid_login: "Email ou password inválidos",
   },
   en: {
-    app_name: "Order Management",
+    app_name: "ProdStock V1.1 Beta",
     loading: "Loading...",
     save: "Save",
     cancel: "Cancel",
@@ -215,6 +217,8 @@ export const translations = {
     city: "City",
     country: "Country",
     clients_pdf: "Clients PDF",
+    search_client_placeholder: "Search by name or Tax ID",
+    search_product_placeholder: "Search by name, SKU or barcode",
 
     total_clients: "Total Clients",
     total_products: "Total Products",

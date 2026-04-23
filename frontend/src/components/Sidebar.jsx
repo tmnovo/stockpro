@@ -33,7 +33,7 @@ const navItems = (t, user) => {
   return items;
 };
 
-export function SidebarContent({ companyName = "OMS", onNavigate }) {
+export function SidebarContent({ companyName = "ProdStock V1.1 Beta", onNavigate }) {
   const { user, logout, hasPermission } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -102,6 +102,9 @@ export default function Sidebar({ companyName }) {
   return (
     <aside className="hidden md:flex md:flex-col w-64 h-screen border-r border-sidebar-border shrink-0 sticky top-0" data-testid="sidebar-desktop">
       <SidebarContent companyName={companyName} />
+      <div className="px-4 py-2 text-[10px] text-muted-foreground border-t border-sidebar-border font-mono leading-snug">
+        Powered by Tiago Novo e Bruno Santos
+      </div>
     </aside>
   );
 }

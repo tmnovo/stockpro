@@ -14,7 +14,7 @@ function settings_get(): void {
     $stmt->execute(['global']);
     $s = $stmt->fetch();
     if (!$s) {
-        $s = ['id' => 'global', 'company_name' => 'Order Management System', 'company_logo' => null];
+        $s = ['id' => 'global', 'company_name' => 'ProdStock V1.1 Beta', 'company_logo' => null];
     }
     json_response($s);
 }

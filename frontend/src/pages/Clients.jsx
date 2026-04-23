@@ -121,7 +121,7 @@ export default function Clients() {
           <div className="relative max-w-sm w-full">
             <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder={t("search")}
+              placeholder={t("search_client_placeholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"

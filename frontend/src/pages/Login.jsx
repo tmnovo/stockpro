@@ -14,8 +14,8 @@ export default function Login() {
   const { user, login } = useAuth();
   const { t, lang, setLang } = useLanguage();
   const { theme, toggle } = useTheme();
-  const [email, setEmail] = useState("admin@admin.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
@@ -123,15 +123,6 @@ export default function Login() {
                   {loading ? t("loading") : t("sign_in")}
                 </Button>
               </form>
-
-              <div className="mt-8 pt-6 border-t border-border">
-                <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
-                  Default admin
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  admin@admin.com · admin123
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

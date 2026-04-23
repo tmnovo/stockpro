@@ -17,15 +17,15 @@ function get_company(): array {
     $stmt->execute(['global']);
     $s = $stmt->fetch();
     return [
-        'name' => $s['company_name'] ?? 'Order Management',
+        'name' => $s['company_name'] ?? 'ProdStock V1.1 Beta',
         'logo' => $s['company_logo'] ?? null,
     ];
 }
 
 function new_pdf(string $title): TCPDF {
     $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-    $pdf->SetCreator('Order Management');
-    $pdf->SetAuthor('OMS');
+    $pdf->SetCreator('ProdStock V1.1 Beta');
+    $pdf->SetAuthor('ProdStock');
     $pdf->SetTitle($title);
     $pdf->SetMargins(12, 22, 12);
     $pdf->SetHeaderMargin(5);

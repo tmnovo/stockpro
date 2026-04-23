@@ -40,7 +40,7 @@ $resource = $segments[0] ?? '';
 // Route to handler files
 switch ($resource) {
     case '':
-        json_response(['message' => 'Order Management System API', 'version' => '2.0']);
+        json_response(['message' => 'ProdStock V1.1 Beta API', 'version' => '1.1-beta']);
     case 'auth':
         require __DIR__ . '/auth.php';
         handle_auth($segments, $method);

@@ -122,7 +122,7 @@ export default function Products() {
           <div className="flex flex-wrap gap-2 items-center flex-1 max-w-2xl">
             <div className="relative max-w-sm flex-1 min-w-[220px]">
               <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="products-search" />
+              <Input placeholder={t("search_product_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="products-search" />
             </div>
             <Select value={supplierFilter} onValueChange={setSupplierFilter}>
               <SelectTrigger className="w-56" data-testid="products-supplier-filter">

@@ -107,7 +107,7 @@ function q($v) { return var_export((string)$v, true); }
 <html lang="pt">
 <head>
 <meta charset="utf-8">
-<title>Instalação — Gestão de Encomendas</title>
+<title>Instalação — ProdStock V1.1 Beta</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 * { box-sizing: border-box; }
@@ -135,7 +135,7 @@ a.btn-link { display: inline-block; background: #0052ff; color: white; padding: 
 </head>
 <body>
 <div class="container">
-    <h1>Gestão de Encomendas</h1>
+    <h1>ProdStock V1.1 Beta</h1>
     <p class="subtitle">Instalador — Passo <?= $step ?> de 4</p>
     <div class="steps">
         <?php for ($i = 1; $i <= 4; $i++): ?>
