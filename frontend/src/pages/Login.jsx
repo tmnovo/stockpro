@@ -66,7 +66,7 @@ export default function Login() {
         </div>
 
         <div className="text-xs font-mono text-muted-foreground">
-          © 2026 — Seguro · Rápido · Escalável
+          ProdStock — Made on Portugal by Tiago Novo e Bruno Santos
         </div>
       </div>
 

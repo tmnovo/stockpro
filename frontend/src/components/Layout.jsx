@@ -36,7 +36,7 @@ export default function Layout({ title, children }) {
           {children}
         </main>
         <footer className="px-4 py-3 text-xs text-muted-foreground border-t border-border text-center font-mono md:hidden">
-          Powered by Tiago Novo e Bruno Santos
+          ProdStock — Made on Portugal by Tiago Novo e Bruno Santos
         </footer>
       </div>
     </div>
