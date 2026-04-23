@@ -1,7 +1,7 @@
 export const translations = {
   pt: {
     // Common
-    app_name: "ProdStock V1.1 Beta",
+    app_name: "ProdStock V1.3",
     loading: "A carregar...",
     save: "Guardar",
     cancel: "Cancelar",
@@ -117,6 +117,16 @@ export const translations = {
     subtotal: "Subtotal",
     generate_pdf: "Gerar PDF",
     daily_pdf: "PDF do Dia",
+    pdf_options: "Opções do PDF",
+    pdf_mode_full: "Relatório completo (resumo + detalhe)",
+    pdf_mode_clients: "Só clientes (dia seguinte)",
+    pdf_mode_supplier: "Só produtos de um fornecedor",
+    choose_supplier: "Escolher fornecedor",
+    price_no_vat: "Preço s/IVA",
+    price_with_vat: "Preço c/IVA",
+    vat_rate: "Taxa IVA %",
+    total_no_vat: "Total s/IVA",
+    total_with_vat: "Total c/IVA",
 
     // Users
     name: "Nome",
@@ -158,7 +168,7 @@ export const translations = {
     invalid_login: "Email ou password inválidos",
   },
   en: {
-    app_name: "ProdStock V1.1 Beta",
+    app_name: "ProdStock V1.3",
     loading: "Loading...",
     save: "Save",
     cancel: "Cancel",
@@ -265,6 +275,16 @@ export const translations = {
     subtotal: "Subtotal",
     generate_pdf: "Generate PDF",
     daily_pdf: "Daily PDF",
+    pdf_options: "PDF Options",
+    pdf_mode_full: "Full report (summary + detail)",
+    pdf_mode_clients: "Clients only (next day)",
+    pdf_mode_supplier: "Only products of one supplier",
+    choose_supplier: "Choose supplier",
+    price_no_vat: "Price excl. VAT",
+    price_with_vat: "Price incl. VAT",
+    vat_rate: "VAT rate %",
+    total_no_vat: "Total excl. VAT",
+    total_with_vat: "Total incl. VAT",
 
     name: "Name",
     role: "Role",

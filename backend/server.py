@@ -191,16 +191,22 @@ class ClientIn(BaseModel):
 class ProductIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     sku: Optional[str] = Field(None, max_length=50)
+    barcode: Optional[str] = Field(None, max_length=50)
+    category: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = Field(None, max_length=1000)
-    price: float = Field(ge=0)
+    price: float = Field(ge=0)                # Price WITH VAT (€)
+    price_no_vat: Optional[float] = Field(default=0.0, ge=0)  # Price WITHOUT VAT (€)
+    vat_rate: Optional[float] = Field(default=23.0, ge=0, le=100)  # VAT % (23 / 13 / 6 / 0)
     stock: int = Field(default=0, ge=0)
     unit: Optional[str] = Field(default="un", max_length=20)
+    supplier_id: Optional[str] = Field(None, max_length=50)
 
 
 class OrderItemIn(BaseModel):
     product_id: str
     quantity: int = Field(ge=1)
-    price: Optional[float] = Field(default=None, ge=0)  # snapshot price, default = product price
+    price: Optional[float] = Field(default=None, ge=0)  # snapshot price w/ VAT
+    price_no_vat: Optional[float] = Field(default=None, ge=0)  # snapshot price w/o VAT
 
 
 class OrderIn(BaseModel):
@@ -718,26 +724,45 @@ async def export_products(user: dict = Depends(require_permission("products", "e
 async def _enrich_order(order: dict) -> dict:
     client = await db.clients.find_one({"id": order["client_id"]}, {"_id": 0})
     order["client_name"] = client["name"] if client else "Unknown"
+    order["client_tax_id"] = client.get("tax_id") if client else None
     enriched_items = []
     total = 0.0
+    total_no_vat = 0.0
     for item in order.get("items", []):
         product = await db.products.find_one({"id": item["product_id"]}, {"_id": 0})
         name = product["name"] if product else "Unknown"
         unit = product.get("unit", "un") if product else "un"
+        sku = product.get("sku") if product else None
         price = float(item.get("price") or (product["price"] if product else 0))
+        vat_rate = float(product.get("vat_rate", 23.0)) if product else 23.0
+        # price_no_vat: if item has explicit override use it, else derive from price
+        if item.get("price_no_vat") is not None:
+            price_no_vat = float(item["price_no_vat"])
+        elif product and product.get("price_no_vat"):
+            price_no_vat = float(product["price_no_vat"])
+        else:
+            price_no_vat = round(price / (1 + vat_rate / 100), 4) if vat_rate else price
         qty = int(item["quantity"])
         subtotal = price * qty
+        subtotal_no_vat = price_no_vat * qty
         total += subtotal
+        total_no_vat += subtotal_no_vat
         enriched_items.append({
             "product_id": item["product_id"],
             "product_name": name,
+            "product_sku": sku,
             "quantity": qty,
             "price": price,
+            "price_no_vat": price_no_vat,
+            "vat_rate": vat_rate,
             "unit": unit,
             "subtotal": subtotal,
+            "subtotal_no_vat": subtotal_no_vat,
+            "supplier_id": (product or {}).get("supplier_id") if product else None,
         })
     order["items"] = enriched_items
     order["total"] = total
+    order["total_no_vat"] = total_no_vat
     return order
 
 
@@ -809,7 +834,15 @@ async def list_orders(user: dict = Depends(require_permission("orders", "view"))
 
 @api_router.get("/orders/daily-pdf")
 async def daily_pdf(target_date: Optional[str] = Query(None),
+                    mode: Optional[str] = Query("all"),
+                    supplier_id: Optional[str] = Query(None),
                     user: dict = Depends(require_permission("orders", "pdf"))):
+    """
+    mode:
+      - "all"              -> default full report (summary + orders per client)
+      - "clients_only"     -> just the list of clients that have deliveries
+      - "supplier_products"-> only products of the given supplier_id (quantities + prices)
+    """
     # Default: tomorrow
     if not target_date:
         tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).date()
@@ -821,16 +854,27 @@ async def daily_pdf(target_date: Optional[str] = Query(None),
     enriched = [await _enrich_order(o) for o in orders]
 
     settings = await db.settings.find_one({"id": "global"}, {"_id": 0}) or {}
-    company_name = settings.get("company_name") or os.environ.get("COMPANY_NAME", "Order Management")
+    company_name = settings.get("company_name") or os.environ.get("COMPANY_NAME", "ProdStock")
     logo = settings.get("company_logo")
 
-    pdf_bytes = await generate_orders_pdf(enriched, target_date, company_name, logo)
+    supplier_name = None
+    if mode == "supplier_products" and supplier_id:
+        sup = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+        supplier_name = sup.get("name") if sup else "—"
+
+    pdf_bytes = await generate_orders_pdf(
+        enriched, target_date, company_name, logo,
+        mode=mode or "all",
+        supplier_id=supplier_id,
+        supplier_name=supplier_name,
+    )
     await log_action(user, "pdf_export", "order", None,
-                     f"Generated PDF for {target_date} ({len(enriched)} orders)")
+                     f"Generated PDF ({mode}) for {target_date} ({len(enriched)} orders)")
+    label = mode if mode != "all" else "full"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="orders_{target_date}.pdf"'},
+        headers={"Content-Disposition": f'attachment; filename="orders_{target_date}_{label}.pdf"'},
     )
 
 
@@ -853,7 +897,19 @@ async def create_order(data: OrderIn, user: dict = Depends(require_permission("o
         if not prod:
             raise HTTPException(status_code=400, detail=f"Product {it.product_id} not found")
         price = float(it.price) if it.price is not None else float(prod["price"])
-        items_out.append({"product_id": it.product_id, "quantity": it.quantity, "price": price})
+        vat_rate = float(prod.get("vat_rate", 23.0))
+        if it.price_no_vat is not None:
+            price_no_vat = float(it.price_no_vat)
+        elif prod.get("price_no_vat"):
+            price_no_vat = float(prod["price_no_vat"])
+        else:
+            price_no_vat = round(price / (1 + vat_rate / 100), 4) if vat_rate else price
+        items_out.append({
+            "product_id": it.product_id,
+            "quantity": it.quantity,
+            "price": price,
+            "price_no_vat": price_no_vat,
+        })
 
     doc = {
         "id": str(uuid.uuid4()),
@@ -891,7 +947,19 @@ async def update_order(order_id: str, data: OrderUpdateIn,
             if not prod:
                 raise HTTPException(status_code=400, detail=f"Product {it.product_id} not found")
             price = float(it.price) if it.price is not None else float(prod["price"])
-            items_out.append({"product_id": it.product_id, "quantity": it.quantity, "price": price})
+            vat_rate = float(prod.get("vat_rate", 23.0))
+            if it.price_no_vat is not None:
+                price_no_vat = float(it.price_no_vat)
+            elif prod.get("price_no_vat"):
+                price_no_vat = float(prod["price_no_vat"])
+            else:
+                price_no_vat = round(price / (1 + vat_rate / 100), 4) if vat_rate else price
+            items_out.append({
+                "product_id": it.product_id,
+                "quantity": it.quantity,
+                "price": price,
+                "price_no_vat": price_no_vat,
+            })
         update["items"] = items_out
     if data.delivery_date is not None:
         update["delivery_date"] = data.delivery_date
@@ -920,7 +988,10 @@ async def delete_order(order_id: str, user: dict = Depends(require_permission("o
 # PDF generation
 # ----------------------------------------------------------------------------
 async def generate_orders_pdf(orders: List[dict], target_date: str, company_name: str,
-                               logo_data_url: Optional[str] = None) -> bytes:
+                               logo_data_url: Optional[str] = None,
+                               mode: str = "all",
+                               supplier_id: Optional[str] = None,
+                               supplier_name: Optional[str] = None) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
                             leftMargin=15 * mm, rightMargin=15 * mm,
@@ -947,70 +1018,185 @@ async def generate_orders_pdf(orders: List[dict], target_date: str, company_name
             logger.warning(f"Could not embed logo: {e}")
 
     elements.append(Paragraph(company_name, title_style))
-    elements.append(Paragraph(f"Relatório de Encomendas — Entrega: <b>{target_date}</b>", subtitle_style))
+
+    mode_label = {
+        "all": "Relatório Completo",
+        "clients_only": "Clientes com Entrega",
+        "supplier_products": f"Produtos do Fornecedor: {supplier_name or '—'}",
+    }.get(mode, "Relatório")
+    elements.append(Paragraph(f"{mode_label} — Entrega: <b>{target_date}</b>", subtitle_style))
     elements.append(Paragraph(f"Gerado em: {now_utc().strftime('%Y-%m-%d %H:%M UTC')}", subtitle_style))
 
     if not orders:
         elements.append(Paragraph("Sem encomendas para a data seleccionada.", styles['Normal']))
-    else:
-        # Summary of products going out
-        product_totals: Dict[str, Dict[str, Any]] = {}
-        for o in orders:
-            for it in o.get("items", []):
-                key = it["product_name"]
-                if key not in product_totals:
-                    product_totals[key] = {"quantity": 0, "unit": it.get("unit", "un")}
-                product_totals[key]["quantity"] += it["quantity"]
+        doc.build(elements)
+        return buf.getvalue()
 
-        elements.append(Paragraph("Resumo de Produtos", h2))
-        data = [["Produto", "Quantidade Total", "Unidade"]]
-        for name, info in sorted(product_totals.items()):
-            data.append([name, str(info["quantity"]), info["unit"]])
-        t = Table(data, colWidths=[90 * mm, 45 * mm, 35 * mm])
+    # =======================================================
+    # MODE 1: clients_only  -> just the list of clients
+    # =======================================================
+    if mode == "clients_only":
+        elements.append(Paragraph("Lista de Clientes", h2))
+        data = [["#", "Cliente", "NIF", "Total (c/IVA)", "Itens"]]
+        for idx, o in enumerate(orders, 1):
+            data.append([
+                str(idx),
+                o.get("client_name", "—"),
+                o.get("client_tax_id") or "—",
+                f"€{o.get('total', 0):.2f}",
+                str(sum(int(it["quantity"]) for it in o.get("items", []))),
+            ])
+        t = Table(data, colWidths=[12 * mm, 90 * mm, 30 * mm, 30 * mm, 18 * mm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0052FF")),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#F9F9FB")),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
-            ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
+            ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
+            ('ALIGN', (4, 1), (4, -1), 'RIGHT'),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9F9FB")]),
         ]))
         elements.append(t)
-        elements.append(Spacer(1, 10))
+        doc.build(elements)
+        return buf.getvalue()
 
-        # Orders per client
-        elements.append(Paragraph("Encomendas por Cliente", h2))
+    # =======================================================
+    # MODE 2: supplier_products -> only items of given supplier
+    # =======================================================
+    if mode == "supplier_products":
+        # Aggregate quantities per product for given supplier
+        agg: Dict[str, Dict[str, Any]] = {}
         for o in orders:
-            total = o.get("total", 0)
-            elements.append(Paragraph(
-                f"<b>Cliente:</b> {o['client_name']} &nbsp;&nbsp; <b>Estado:</b> {o.get('status','pending')} "
-                f"&nbsp;&nbsp; <b>Total:</b> €{total:.2f}",
-                styles['Normal']))
-            if o.get("notes"):
-                elements.append(Paragraph(f"<i>Notas: {o['notes']}</i>", styles['Normal']))
-            tdata = [["Produto", "Qtd", "Preço Un.", "Subtotal"]]
-            for it in o["items"]:
-                tdata.append([
-                    it["product_name"],
-                    str(it["quantity"]),
-                    f"€{it['price']:.2f}",
-                    f"€{it['subtotal']:.2f}",
-                ])
-            tbl = Table(tdata, colWidths=[85 * mm, 25 * mm, 30 * mm, 30 * mm])
-            tbl.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#111827")),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
-                ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ]))
-            elements.append(tbl)
-            elements.append(Spacer(1, 8))
+            for it in o.get("items", []):
+                if supplier_id and it.get("supplier_id") != supplier_id:
+                    continue
+                key = it.get("product_sku") or it["product_name"]
+                if key not in agg:
+                    agg[key] = {
+                        "name": it["product_name"],
+                        "sku": it.get("product_sku") or "—",
+                        "unit": it.get("unit", "un"),
+                        "qty": 0,
+                        "price_no_vat": it.get("price_no_vat", 0),
+                        "price": it.get("price", 0),
+                        "total_no_vat": 0.0,
+                        "total": 0.0,
+                    }
+                agg[key]["qty"] += int(it["quantity"])
+                agg[key]["total_no_vat"] += float(it.get("subtotal_no_vat", 0))
+                agg[key]["total"] += float(it.get("subtotal", 0))
+
+        if not agg:
+            elements.append(Paragraph("Nenhum produto deste fornecedor nas encomendas do dia.", styles['Normal']))
+            doc.build(elements)
+            return buf.getvalue()
+
+        data = [["SKU", "Produto", "Qtd", "Un.", "Preço s/IVA", "Preço c/IVA", "Total c/IVA"]]
+        grand_no_vat = 0.0
+        grand = 0.0
+        for row in sorted(agg.values(), key=lambda r: r["name"]):
+            grand_no_vat += row["total_no_vat"]
+            grand += row["total"]
+            data.append([
+                row["sku"], row["name"], str(row["qty"]), row["unit"],
+                f"€{row['price_no_vat']:.2f}",
+                f"€{row['price']:.2f}",
+                f"€{row['total']:.2f}",
+            ])
+        data.append(["", "", "", "", f"s/IVA: €{grand_no_vat:.2f}", "TOTAL", f"€{grand:.2f}"])
+        t = Table(data, colWidths=[22 * mm, 58 * mm, 14 * mm, 12 * mm, 24 * mm, 24 * mm, 26 * mm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0052FF")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor("#E5E7EB")),
+            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor("#F9F9FB")]),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#111827")),
+            ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ]))
+        elements.append(t)
+        doc.build(elements)
+        return buf.getvalue()
+
+    # =======================================================
+    # MODE 3: "all" (default) -> summary + per-client details
+    # =======================================================
+    # Summary of products going out (with VAT prices + s/IVA)
+    product_totals: Dict[str, Dict[str, Any]] = {}
+    for o in orders:
+        for it in o.get("items", []):
+            key = it["product_name"]
+            if key not in product_totals:
+                product_totals[key] = {
+                    "quantity": 0,
+                    "unit": it.get("unit", "un"),
+                    "price": it.get("price", 0),
+                    "price_no_vat": it.get("price_no_vat", 0),
+                }
+            product_totals[key]["quantity"] += int(it["quantity"])
+
+    elements.append(Paragraph("Resumo de Produtos", h2))
+    data = [["Produto", "Qtd.", "Un.", "Preço s/IVA", "Preço c/IVA"]]
+    for name, info in sorted(product_totals.items()):
+        data.append([name, str(info["quantity"]), info["unit"],
+                     f"€{info['price_no_vat']:.2f}",
+                     f"€{info['price']:.2f}"])
+    t = Table(data, colWidths=[80 * mm, 18 * mm, 18 * mm, 28 * mm, 28 * mm])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#0052FF")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
+        ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9F9FB")]),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 10))
+
+    # Orders per client
+    elements.append(Paragraph("Encomendas por Cliente", h2))
+    for o in orders:
+        total = o.get("total", 0)
+        total_no_vat = o.get("total_no_vat", 0)
+        nif = o.get("client_tax_id") or "—"
+        elements.append(Paragraph(
+            f"<b>Cliente:</b> {o['client_name']} &nbsp; <b>NIF:</b> {nif} &nbsp; "
+            f"<b>Estado:</b> {o.get('status','pending')} &nbsp; "
+            f"<b>Total:</b> €{total_no_vat:.2f} s/IVA · €{total:.2f} c/IVA",
+            styles['Normal']))
+        if o.get("notes"):
+            elements.append(Paragraph(f"<i>Notas: {o['notes']}</i>", styles['Normal']))
+        tdata = [["Produto", "Qtd", "Preço s/IVA", "Preço c/IVA", "Subtotal"]]
+        for it in o["items"]:
+            tdata.append([
+                it["product_name"],
+                str(it["quantity"]),
+                f"€{it.get('price_no_vat', 0):.2f}",
+                f"€{it['price']:.2f}",
+                f"€{it['subtotal']:.2f}",
+            ])
+        tbl = Table(tdata, colWidths=[72 * mm, 18 * mm, 28 * mm, 28 * mm, 24 * mm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#111827")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB")),
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ]))
+        elements.append(tbl)
+        elements.append(Spacer(1, 8))
 
     doc.build(elements)
     return buf.getvalue()

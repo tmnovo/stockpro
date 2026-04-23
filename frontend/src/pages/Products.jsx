@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const emptyProduct = { name: "", sku: "", barcode: "", category: "", description: "", price: 0, stock: 0, unit: "un", supplier_id: "" };
+const emptyProduct = { name: "", sku: "", barcode: "", category: "", description: "", price: 0, price_no_vat: 0, vat_rate: 23, stock: 0, unit: "un", supplier_id: "" };
 
 export default function Products() {
   const { t } = useLanguage();
@@ -57,6 +57,8 @@ export default function Products() {
     const payload = {
       ...form,
       price: parseFloat(form.price) || 0,
+      price_no_vat: parseFloat(form.price_no_vat) || 0,
+      vat_rate: parseFloat(form.vat_rate) || 0,
       stock: parseInt(form.stock) || 0,
     };
     try {
@@ -163,7 +165,9 @@ export default function Products() {
                   <TableHead>{t("name")}</TableHead>
                   <TableHead>{t("sku")}</TableHead>
                   <TableHead>{t("supplier")}</TableHead>
-                  <TableHead className="text-right">{t("price")}</TableHead>
+                  <TableHead className="text-right">{t("price_no_vat")}</TableHead>
+                  <TableHead className="text-right">{t("price_with_vat")}</TableHead>
+                  <TableHead className="text-right">IVA</TableHead>
                   <TableHead className="text-right">{t("stock")}</TableHead>
                   <TableHead>{t("unit")}</TableHead>
                   <TableHead className="text-right">{t("actions")}</TableHead>
@@ -171,15 +175,17 @@ export default function Products() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">{t("loading")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">{t("loading")}</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">{t("no_data")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">{t("no_data")}</TableCell></TableRow>
                 ) : filtered.map((p) => (
                   <TableRow key={p.id} data-testid={`product-row-${p.id}`}>
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
                     <TableCell className="text-muted-foreground text-xs">{p.supplier_name || "—"}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">€{Number(p.price).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-muted-foreground">€{Number(p.price_no_vat || 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums font-semibold">€{Number(p.price || 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs text-muted-foreground">{Number(p.vat_rate ?? 23).toFixed(0)}%</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{p.stock}</TableCell>
                     <TableCell className="text-muted-foreground">{p.unit}</TableCell>
                     <TableCell className="text-right">
@@ -219,9 +225,14 @@ export default function Products() {
               <Field label="Categoria" value={form.category} onChange={(v) => setForm({ ...form, category: v })} testid="field-product-category" />
               <Field label={t("unit")} value={form.unit} onChange={(v) => setForm({ ...form, unit: v })} testid="field-product-unit" />
             </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label={t("price_no_vat")} value={form.price_no_vat} onChange={(v) => setForm({ ...form, price_no_vat: v })} type="number" testid="field-product-price-no-vat" />
+              <Field label={t("price_with_vat")} value={form.price} onChange={(v) => setForm({ ...form, price: v })} type="number" testid="field-product-price" />
+              <Field label={t("vat_rate")} value={form.vat_rate} onChange={(v) => setForm({ ...form, vat_rate: v })} type="number" testid="field-product-vat" />
+            </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t("price")} value={form.price} onChange={(v) => setForm({ ...form, price: v })} type="number" testid="field-product-price" />
               <Field label={t("stock")} value={form.stock} onChange={(v) => setForm({ ...form, stock: v })} type="number" testid="field-product-stock" />
+              <Field label={t("unit")} value={form.unit} onChange={(v) => setForm({ ...form, unit: v })} testid="field-product-unit-2" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs uppercase font-mono tracking-wider">{t("supplier")}</Label>

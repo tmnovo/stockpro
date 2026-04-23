@@ -99,6 +99,7 @@ def import_products():
         unit = clean(row[5]) or "un"
         price_no_vat = row[6]
         price_sell = row[7]
+        vat_rate_label = clean(row[10]) or "Normal"
 
         if not name:
             continue
@@ -107,6 +108,19 @@ def import_products():
             price = float(price_sell) if price_sell not in (None, "") else float(price_no_vat or 0)
         except (TypeError, ValueError):
             price = 0.0
+        try:
+            no_vat = float(price_no_vat) if price_no_vat not in (None, "") else 0.0
+        except (TypeError, ValueError):
+            no_vat = 0.0
+
+        # Map Portuguese VAT label to percentage
+        vat_map = {"Normal": 23.0, "Intermédia": 13.0, "Reduzida": 6.0, "Isenta": 0.0}
+        vat_rate = vat_map.get(vat_rate_label, 23.0)
+        # If both prices present and different, recompute to confirm
+        if no_vat > 0 and price > no_vat:
+            computed = round((price / no_vat - 1) * 100)
+            if computed in (6, 13, 23):
+                vat_rate = float(computed)
 
         if familia:
             families.add(familia)
@@ -120,6 +134,9 @@ def import_products():
             "category": familia,
             "type": tipo,
             "price": round(price, 4),
+            "price_no_vat": round(no_vat, 4),
+            "vat_rate": vat_rate,
+            "vat_label": vat_rate_label,
             "stock": 0,
             "unit": unit,
             "created_at": iso_now(),

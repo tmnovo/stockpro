@@ -33,7 +33,7 @@ const navItems = (t, user) => {
   return items;
 };
 
-export function SidebarContent({ companyName = "ProdStock V1.1 Beta", onNavigate }) {
+export function SidebarContent({ companyName = "ProdStock V1.3", onNavigate }) {
   const { user, logout, hasPermission } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();

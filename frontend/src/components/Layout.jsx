@@ -6,13 +6,13 @@ import { api } from "@/lib/api";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export default function Layout({ title, children }) {
-  const [companyName, setCompanyName] = useState("ProdStock V1.1 Beta");
+  const [companyName, setCompanyName] = useState("ProdStock V1.3");
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     api.get("/settings")
-      .then(({ data }) => setCompanyName(data.company_name || "ProdStock V1.1 Beta"))
+      .then(({ data }) => setCompanyName(data.company_name || "ProdStock V1.3"))
       .catch(() => {});
   }, []);
 
