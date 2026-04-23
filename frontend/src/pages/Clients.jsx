@@ -17,11 +17,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, UploadSimple, DownloadSimple, PencilSimple, Trash, MagnifyingGlass } from "@phosphor-icons/react";
+import { Plus, UploadSimple, DownloadSimple, PencilSimple, Trash, MagnifyingGlass, FilePdf } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 
-const emptyClient = { name: "", email: "", phone: "", address: "", tax_id: "", notes: "" };
+const emptyClient = { name: "", email: "", phone: "", address: "", tax_id: "", postal_code: "", city: "", country: "", notes: "", discount: 0 };
 
 export default function Clients() {
   const { t } = useLanguage();
@@ -97,6 +97,16 @@ export default function Clients() {
     } catch (e) { toast.error(formatApiError(e)); }
   };
 
+  const doExportPdf = async () => {
+    try {
+      const response = await api.get("/pdf/clients", { responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = "clientes.pdf"; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { toast.error(formatApiError(e)); }
+  };
+
   const filtered = clients.filter((c) =>
     !search || c.name.toLowerCase().includes(search.toLowerCase()) ||
     (c.email || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -147,20 +157,22 @@ export default function Clients() {
                   <TableHead>{t("email")}</TableHead>
                   <TableHead>{t("phone")}</TableHead>
                   <TableHead>{t("tax_id")}</TableHead>
+                  <TableHead className="text-right">{t("discount")}</TableHead>
                   <TableHead className="text-right">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">{t("loading")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("loading")}</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">{t("no_data")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("no_data")}</TableCell></TableRow>
                 ) : filtered.map((c) => (
                   <TableRow key={c.id} data-testid={`client-row-${c.id}`}>
                     <TableCell className="font-medium">{c.name}</TableCell>
                     <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
                     <TableCell className="text-muted-foreground font-mono text-xs">{c.phone || "—"}</TableCell>
                     <TableCell className="text-muted-foreground font-mono text-xs">{c.tax_id || "—"}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{Number(c.discount || 0) > 0 ? `${Number(c.discount).toFixed(1)}%` : "—"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         {hasPermission("clients", "update") && (
@@ -196,7 +208,15 @@ export default function Clients() {
               <Field label={t("phone")} value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} testid="field-client-phone" />
             </div>
             <Field label={t("address")} value={form.address} onChange={(v) => setForm({ ...form, address: v })} testid="field-client-address" />
-            <Field label={t("tax_id")} value={form.tax_id} onChange={(v) => setForm({ ...form, tax_id: v })} testid="field-client-taxid" />
+            <div className="grid grid-cols-3 gap-3">
+              <Field label={t("postal_code")} value={form.postal_code} onChange={(v) => setForm({ ...form, postal_code: v })} testid="field-client-zip" />
+              <Field label={t("city")} value={form.city} onChange={(v) => setForm({ ...form, city: v })} testid="field-client-city" />
+              <Field label={t("country")} value={form.country} onChange={(v) => setForm({ ...form, country: v })} testid="field-client-country" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("tax_id")} value={form.tax_id} onChange={(v) => setForm({ ...form, tax_id: v })} testid="field-client-taxid" />
+              <Field label={t("discount")} type="number" value={form.discount} onChange={(v) => setForm({ ...form, discount: v })} testid="field-client-discount" />
+            </div>
             <div className="space-y-1.5">
               <Label className="text-xs uppercase font-mono tracking-wider">{t("notes")}</Label>
               <Textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} data-testid="field-client-notes" />

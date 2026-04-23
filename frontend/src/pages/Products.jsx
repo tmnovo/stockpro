@@ -20,15 +20,18 @@ import {
 import { Plus, UploadSimple, DownloadSimple, PencilSimple, Trash, MagnifyingGlass } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const emptyProduct = { name: "", sku: "", description: "", price: 0, stock: 0, unit: "un" };
+const emptyProduct = { name: "", sku: "", barcode: "", category: "", description: "", price: 0, stock: 0, unit: "un", supplier_id: "" };
 
 export default function Products() {
   const { t } = useLanguage();
   const { hasPermission } = useAuth();
   const [products, setProducts] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyProduct);
@@ -38,8 +41,9 @@ export default function Products() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/products");
-      setProducts(data);
+      const [p, s] = await Promise.all([api.get("/products"), api.get("/suppliers")]);
+      setProducts(p.data);
+      setSuppliers(s.data);
     } catch (e) { toast.error(formatApiError(e)); }
     setLoading(false);
   };
@@ -102,18 +106,34 @@ export default function Products() {
     } catch (e) { toast.error(formatApiError(e)); }
   };
 
-  const filtered = products.filter((p) =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.sku || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = products.filter((p) => {
+    const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.sku || "").toLowerCase().includes(search.toLowerCase()) ||
+      (p.barcode || "").includes(search);
+    const matchesSupplier = supplierFilter === "all" || p.supplier_id === supplierFilter ||
+      (supplierFilter === "none" && !p.supplier_id);
+    return matchesSearch && matchesSupplier;
+  });
 
   return (
     <Layout title={t("products")}>
       <div className="space-y-4" data-testid="products-page">
         <div className="flex flex-wrap gap-2 items-center justify-between">
-          <div className="relative max-w-sm w-full">
-            <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="products-search" />
+          <div className="flex flex-wrap gap-2 items-center flex-1 max-w-2xl">
+            <div className="relative max-w-sm flex-1 min-w-[220px]">
+              <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder={t("search")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="products-search" />
+            </div>
+            <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+              <SelectTrigger className="w-56" data-testid="products-supplier-filter">
+                <SelectValue placeholder={t("supplier")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("supplier")}: —</SelectItem>
+                <SelectItem value="none">({t("no_data")})</SelectItem>
+                {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-wrap gap-2">
             <input type="file" ref={fileRef} className="hidden" accept=".csv,.xlsx,.xls" onChange={onImport} data-testid="products-import-input" />
@@ -142,6 +162,7 @@ export default function Products() {
                 <TableRow>
                   <TableHead>{t("name")}</TableHead>
                   <TableHead>{t("sku")}</TableHead>
+                  <TableHead>{t("supplier")}</TableHead>
                   <TableHead className="text-right">{t("price")}</TableHead>
                   <TableHead className="text-right">{t("stock")}</TableHead>
                   <TableHead>{t("unit")}</TableHead>
@@ -150,13 +171,14 @@ export default function Products() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("loading")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">{t("loading")}</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("no_data")}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">{t("no_data")}</TableCell></TableRow>
                 ) : filtered.map((p) => (
                   <TableRow key={p.id} data-testid={`product-row-${p.id}`}>
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{p.sku || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{p.supplier_name || "—"}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">€{Number(p.price).toFixed(2)}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{p.stock}</TableCell>
                     <TableCell className="text-muted-foreground">{p.unit}</TableCell>
@@ -191,11 +213,25 @@ export default function Products() {
             <Field label={t("name")} value={form.name} onChange={(v) => setForm({ ...form, name: v })} required testid="field-product-name" />
             <div className="grid grid-cols-2 gap-3">
               <Field label={t("sku")} value={form.sku} onChange={(v) => setForm({ ...form, sku: v })} testid="field-product-sku" />
+              <Field label="Barcode" value={form.barcode} onChange={(v) => setForm({ ...form, barcode: v })} testid="field-product-barcode" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Categoria" value={form.category} onChange={(v) => setForm({ ...form, category: v })} testid="field-product-category" />
               <Field label={t("unit")} value={form.unit} onChange={(v) => setForm({ ...form, unit: v })} testid="field-product-unit" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label={t("price")} value={form.price} onChange={(v) => setForm({ ...form, price: v })} type="number" testid="field-product-price" />
               <Field label={t("stock")} value={form.stock} onChange={(v) => setForm({ ...form, stock: v })} type="number" testid="field-product-stock" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-mono tracking-wider">{t("supplier")}</Label>
+              <Select value={form.supplier_id || "_none"} onValueChange={(v) => setForm({ ...form, supplier_id: v === "_none" ? "" : v })}>
+                <SelectTrigger data-testid="field-product-supplier"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">—</SelectItem>
+                  {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs uppercase font-mono tracking-wider">{t("description")}</Label>

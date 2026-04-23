@@ -26,10 +26,11 @@ import {
 import { Plus, PencilSimple, Trash, Key } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
-const RESOURCES = ["clients", "products", "orders", "users", "logs", "settings"];
+const RESOURCES = ["clients", "products", "suppliers", "orders", "users", "logs", "settings"];
 const ACTIONS_BY_RESOURCE = {
   clients: ["view", "create", "update", "delete", "import", "export"],
   products: ["view", "create", "update", "delete", "import", "export"],
+  suppliers: ["view", "create", "update", "delete"],
   orders: ["view", "create", "update", "delete", "pdf"],
   users: ["view", "create", "update", "delete"],
   logs: ["view"],

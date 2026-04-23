@@ -4,7 +4,7 @@ import { api, formatApiError } from "@/lib/api";
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); // null=checking, false=no auth, object=auth'd
+  const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
 
   const fetchMe = useCallback(async () => {
@@ -16,9 +16,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    fetchMe();
-  }, [fetchMe]);
+  useEffect(() => { fetchMe(); }, [fetchMe]);
 
   const login = async (email, password) => {
     setError(null);
@@ -33,9 +31,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch {}
+    try { await api.post("/auth/logout"); } catch {}
     setUser(false);
   };
 
@@ -47,9 +43,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, setUser, login, logout, error, setError, hasPermission, refresh: fetchMe }}
-    >
+    <AuthContext.Provider value={{ user, setUser, login, logout, error, setError, hasPermission, refresh: fetchMe }}>
       {children}
     </AuthContext.Provider>
   );

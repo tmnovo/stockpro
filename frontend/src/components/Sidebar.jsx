@@ -9,6 +9,7 @@ import {
   GearSix,
   SignOut,
   CubeFocus,
+  Truck,
 } from "@phosphor-icons/react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,6 +20,7 @@ const navItems = (t, user) => {
     { to: "/", icon: SquaresFour, label: t("dashboard"), testid: "nav-dashboard" },
     { to: "/clients", icon: UsersFour, label: t("clients"), perm: ["clients", "view"], testid: "nav-clients" },
     { to: "/products", icon: Package, label: t("products"), perm: ["products", "view"], testid: "nav-products" },
+    { to: "/suppliers", icon: Truck, label: t("suppliers"), perm: ["suppliers", "view"], testid: "nav-suppliers" },
     { to: "/orders", icon: ClipboardText, label: t("orders"), perm: ["orders", "view"], testid: "nav-orders" },
   ];
   if (user?.role === "admin") {

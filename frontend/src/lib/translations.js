@@ -44,6 +44,28 @@ export const translations = {
     users: "Utilizadores",
     logs: "Registos",
 
+    // Suppliers (NEW)
+    suppliers: "Fornecedores",
+    supplier: "Fornecedor",
+    new_supplier: "Novo Fornecedor",
+    edit_supplier: "Editar Fornecedor",
+    supplier_products_pdf: "PDF produtos",
+
+    // Dashboard extras
+    top_products: "Produtos mais vendidos (30 dias)",
+    busiest_day: "Dia mais movimentado",
+    orders_by_weekday: "Encomendas por dia da semana",
+    supplier_revenue: "Receita por fornecedor (30 dias)",
+    revenue: "Receita",
+    total_suppliers: "Total Fornecedores",
+
+    // Clients extras
+    discount: "Desconto %",
+    postal_code: "Código Postal",
+    city: "Localidade",
+    country: "País",
+    clients_pdf: "PDF Clientes",
+
     // Dashboard
     total_clients: "Total Clientes",
     total_products: "Total Produtos",
@@ -174,6 +196,25 @@ export const translations = {
     orders: "Orders",
     users: "Users",
     logs: "Logs",
+
+    suppliers: "Suppliers",
+    supplier: "Supplier",
+    new_supplier: "New Supplier",
+    edit_supplier: "Edit Supplier",
+    supplier_products_pdf: "Products PDF",
+
+    top_products: "Top Selling Products (30 days)",
+    busiest_day: "Busiest Day",
+    orders_by_weekday: "Orders by Weekday",
+    supplier_revenue: "Revenue by Supplier (30 days)",
+    revenue: "Revenue",
+    total_suppliers: "Total Suppliers",
+
+    discount: "Discount %",
+    postal_code: "Postal Code",
+    city: "City",
+    country: "Country",
+    clients_pdf: "Clients PDF",
 
     total_clients: "Total Clients",
     total_products: "Total Products",

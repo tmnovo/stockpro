@@ -9,6 +9,7 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Clients from "@/pages/Clients";
 import Products from "@/pages/Products";
+import Suppliers from "@/pages/Suppliers";
 import Orders from "@/pages/Orders";
 import Users from "@/pages/Users";
 import Logs from "@/pages/Logs";
@@ -25,6 +26,7 @@ export default function App() {
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
               <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
+              <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
               <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
               <Route path="/users" element={<ProtectedRoute requireAdmin><Users /></ProtectedRoute>} />
               <Route path="/logs" element={<ProtectedRoute requireAdmin><Logs /></ProtectedRoute>} />

@@ -25,7 +25,7 @@ import { Plus, PencilSimple, Trash, FilePdf, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 
-const emptyOrder = { client_id: "", items: [], delivery_date: "", notes: "", status: "pending" };
+const emptyOrder = { client_id: "", items: [], delivery_date: "", notes: "", status: "pending", discount: 0 };
 
 const statusColors = {
   pending: "bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30",
@@ -81,6 +81,7 @@ export default function Orders() {
       delivery_date: o.delivery_date || "",
       notes: o.notes || "",
       status: o.status,
+      discount: o.discount || 0,
       items: o.items.map((i) => ({ product_id: i.product_id, quantity: i.quantity, price: i.price })),
     });
     setDialogOpen(true);
@@ -98,6 +99,7 @@ export default function Orders() {
     const payload = {
       ...form,
       delivery_date: form.delivery_date || null,
+      discount: parseFloat(form.discount) || 0,
       items: form.items
         .filter((i) => i.product_id && i.quantity > 0)
         .map((i) => ({
@@ -133,7 +135,7 @@ export default function Orders() {
 
   const downloadPdf = async () => {
     try {
-      const response = await api.get(`/orders/daily-pdf`, {
+      const response = await api.get(`/pdf/orders-daily`, {
         params: { target_date: pdfDate },
         responseType: "blob",
       });
@@ -259,6 +261,10 @@ export default function Orders() {
                   <SelectItem value="cancelled">{t("status_cancelled")}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase font-mono tracking-wider">{t("discount")}</Label>
+              <Input type="number" min="0" max="100" step="0.5" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} data-testid="order-discount" />
             </div>
 
             <div className="space-y-2">
