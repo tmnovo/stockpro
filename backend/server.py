@@ -741,6 +741,59 @@ async def _enrich_order(order: dict) -> dict:
     return order
 
 
+# ============================================================================
+# SUPPLIERS (minimal CRUD — used by Products page filter/dropdown)
+# ============================================================================
+class SupplierIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    email: Optional[str] = Field(None, max_length=200)
+    phone: Optional[str] = Field(None, max_length=50)
+    notes: Optional[str] = Field(None, max_length=1000)
+
+
+@api_router.get("/suppliers")
+async def list_suppliers(user: dict = Depends(get_current_user)):
+    items = await db.suppliers.find({}, {"_id": 0}).sort("name", 1).to_list(2000)
+    return items
+
+
+@api_router.post("/suppliers")
+async def create_supplier(data: SupplierIn, user: dict = Depends(get_current_user)):
+    doc = data.model_dump()
+    doc["id"] = str(uuid.uuid4())
+    doc["created_at"] = iso(now_utc())
+    doc["updated_at"] = iso(now_utc())
+    await db.suppliers.insert_one(doc.copy())
+    await log_action(user, "create", "supplier", doc["id"], f"Created supplier {doc['name']}")
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/suppliers/{supplier_id}")
+async def update_supplier(supplier_id: str, data: SupplierIn, user: dict = Depends(get_current_user)):
+    existing = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    update = data.model_dump()
+    update["updated_at"] = iso(now_utc())
+    await db.suppliers.update_one({"id": supplier_id}, {"$set": update})
+    await log_action(user, "update", "supplier", supplier_id, f"Updated supplier {existing['name']}")
+    return await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+
+
+@api_router.delete("/suppliers/{supplier_id}")
+async def delete_supplier(supplier_id: str, user: dict = Depends(get_current_user)):
+    existing = await db.suppliers.find_one({"id": supplier_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    await db.suppliers.delete_one({"id": supplier_id})
+    await log_action(user, "delete", "supplier", supplier_id, f"Deleted supplier {existing['name']}")
+    return {"ok": True}
+
+
+# ============================================================================
+# ORDERS
+# ============================================================================
 @api_router.get("/orders")
 async def list_orders(user: dict = Depends(require_permission("orders", "view")),
                       status: Optional[str] = None,
