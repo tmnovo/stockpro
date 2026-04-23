@@ -30,26 +30,39 @@ function parse_excel_or_csv(string $path, string $filename): array {
         $data = $sheet->toArray(null, true, true, false);
     } catch (Throwable $e) { error_response('Failed to parse file: ' . $e->getMessage(), 400); }
     if (!$data) return [];
-    // Use first non-empty row as header
-    $headers = [];
-    $startIdx = 0;
+
+    // Look for header row (contains any of the expected header names)
+    $expected = ['nome','name','nif','tax_id','sku','código','codigo','email','descrição / nome','descricao / nome','cliente','produto','telefone','preço','preco','price','stock'];
+    $headerIdx = -1; $headers = [];
     foreach ($data as $i => $row) {
-        $nonEmpty = array_filter($row, fn($x) => $x !== null && $x !== '');
-        if (count($nonEmpty) >= 2) {
+        $lower = array_map(fn($x) => mb_strtolower(trim((string)$x)), $row);
+        $matches = array_intersect($lower, $expected);
+        if (count($matches) >= 2) {
             $headers = array_map(fn($x) => normalize_key((string)$x), $row);
-            $startIdx = $i + 1;
+            $headerIdx = $i;
             break;
         }
     }
-    if (!$headers) return [];
+    // Fallback: use first non-empty row
+    if ($headerIdx < 0) {
+        foreach ($data as $i => $row) {
+            $nonEmpty = array_filter($row, fn($x) => $x !== null && $x !== '');
+            if (count($nonEmpty) >= 2) {
+                $headers = array_map(fn($x) => normalize_key((string)$x), $row);
+                $headerIdx = $i;
+                break;
+            }
+        }
+    }
+    if ($headerIdx < 0) return [];
+
     $rows = [];
-    for ($i = $startIdx; $i < count($data); $i++) {
+    for ($i = $headerIdx + 1; $i < count($data); $i++) {
         $vals = array_pad($data[$i], count($headers), null);
         $assoc = [];
         foreach ($headers as $idx => $h) {
             if ($h !== '') $assoc[$h] = $vals[$idx] ?? null;
         }
-        // Skip completely empty rows
         if (count(array_filter($assoc, fn($x) => $x !== null && $x !== '')) > 0) {
             $rows[] = $assoc;
         }
@@ -72,11 +85,11 @@ function export_xlsx(string $filename, string $sheetName, array $rows): void {
     } else {
         $headers = array_keys($rows[0]);
         foreach ($headers as $i => $h) {
-            $sh->setCellValueByColumnAndRow($i + 1, 1, $h);
+            $sh->setCellValue([$i + 1, 1], $h);
         }
         foreach ($rows as $ri => $r) {
             foreach ($headers as $ci => $h) {
-                $sh->setCellValueByColumnAndRow($ci + 1, $ri + 2, $r[$h] ?? '');
+                $sh->setCellValue([$ci + 1, $ri + 2], $r[$h] ?? '');
             }
         }
     }
